@@ -1,30 +1,256 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-model Article {
-  id          Int      @id @default(autoincrement())
-  title       String   @unique
-  description String?
-  body        String
-  published   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  author_id   Int?
-  author      Author?   @relation("author_article", fields: [author_id], references: [id])
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["views"]
 }
 
-model Author {
-  id      Int       @id @default(autoincrement())
-  name    String
-  email   String    @unique
-  article Article[] @relation("author_article")
+model User {
+  id               String      @id
+  email            String      @unique
+  password         String
+  role_id          String
+  role             Role        @relation(fields: [role_id], references: [id])
+  employee_id      String      @unique
+  employee         Employee    @relation(fields: [employee_id], references: [id])
+  address_id       String      @unique
+  address          Address     @relation(fields: [address_id], references: [id])
+  credential_email String?     @unique
+  credential       Credential? @relation(fields: [credential_email], references: [email])
+  status           User_Status @default(UNAUTHENTICATED)
+  member           Member[]
+  created_by       String
+  updated_by       String
+  created_at       DateTime    @default(now())
+  updated_at       DateTime    @updatedAt
+}
+
+model Credential {
+  email                     String          @unique
+  password                  String?
+  verification_code         String
+  active_token              String?
+  role                      Credential_Role @default(USER)
+  is_verified               Boolean         @default(false)
+  is_registered_with_google Boolean         @default(false)
+  user                      User?
+  created_by                String?
+  updated_by                String
+  created_at                DateTime        @default(now())
+  updated_at                DateTime        @updatedAt
+}
+
+model Role {
+  id              String            @id
+  code            String            @unique
+  name            String            @unique
+  delete_flg      Boolean           @default(false)
+  user            User[]
+  role_permission Role_Permission[]
+  created_by      String
+  updated_by      String
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+}
+
+model Permission {
+  id              String            @id
+  code            String            @unique
+  name            String            @unique
+  module          String
+  permission_type Permission_Type
+  role_Permission Role_Permission[]
+  created_by      String
+  updated_by      String
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+}
+
+model Role_Permission {
+  role_id       String
+  role          Role       @relation(fields: [role_id], references: [id])
+  permission_id String
+  permission    Permission @relation(fields: [permission_id], references: [id])
+  is_active     Boolean
+  created_by    String
+  updated_by    String
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  @@id([role_id, permission_id])
+}
+
+model Employee {
+  id            String   @id
+  last_name     String
+  middle_name   String?
+  first_name    String
+  gender        Gender
+  date_of_birth DateTime
+  phone_number  String   @db.VarChar(10)
+  user          User?
+  created_by    String
+  updated_by    String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+}
+
+model Address {
+  id           String   @id
+  house_number String
+  street       String
+  ward         String
+  district     String
+  city         String
+  user         User?
+  created_by   String
+  updated_by   String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}
+
+model Club {
+  id             String    @id
+  name           String    @unique
+  description    String?
+  union_money    Int       @default(0)
+  club_money     Int       @default(0)
+  cost_per_month Int       @default(0)
+  delete_flg     Boolean   @default(false)
+  member         Member[]
+  expense        Expense[]
+  created_by     String
+  updated_by     String
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+}
+
+model Member {
+  id             String           @id
+  club_id        String
+  club           Club             @relation(fields: [club_id], references: [id])
+  user_id        String
+  user           User             @relation(fields: [user_id], references: [id])
+  role           Member_Role      @default(MEMBER)
+  delete_flg     Boolean          @default(false)
+  attendence     Attendence[]
+  expense_Detail Expense_Detail[]
+  created_by     String
+  updated_by     String
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+}
+
+model Attendence {
+  id             String   @id
+  member_id      String
+  member         Member   @relation(fields: [member_id], references: [id])
+  date           DateTime
+  is_participate Boolean  @default(false)
+  created_by     String
+  updated_by     String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+}
+
+model Expense {
+  id             String           @id
+  club_id        String
+  club           Club             @relation(fields: [club_id], references: [id])
+  month          String
+  member_money   Int              @default(0)
+  total_income   Int              @default(0)
+  total_expense  Int              @default(0)
+  total_saving   Int              @default(0)
+  expense_Detail Expense_Detail[]
+  created_by     String
+  updated_by     String
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+}
+
+model Expense_Detail {
+  id          String   @id
+  expense_id  String
+  expense     Expense  @relation(fields: [expense_id], references: [id])
+  member_id   String?
+  member      Member?  @relation(fields: [member_id], references: [id])
+  // payment_date DateTime @default(now())
+  money       Int
+  description String
+  created_by  String
+  updated_by  String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+model Post {
+  id         String      @id
+  type       Post_Type
+  title      String
+  content    String
+  start_date DateTime
+  end_date   DateTime
+  status     Post_Status
+  created_by String
+  updated_by String
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt
+}
+
+view User_Participate {
+  id String @id
+  member_id String
+  total_participate Int
+}
+
+enum Credential_Role {
+  USER
+  ADMIN
+}
+
+enum User_Status {
+  UNAUTHENTICATED
+  ACTIVE
+  INACTIVE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum Post_Type {
+  ALL
+  RUNNING
+  FOOTBALL
+  BADMINTON
+}
+
+enum Post_Status {
+  DRAFT
+  FUTURE
+  PUBLISH
+  EXPIRED
+  TRASH
+}
+
+enum Member_Role {
+  LEADER
+  SUBLEADER
+  MEMBER
+}
+
+enum Permission_Type {
+  CREATE
+  READ
+  UPDATE
+  DELETE
 }
